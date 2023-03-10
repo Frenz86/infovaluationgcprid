@@ -1,0 +1,53 @@
+name: Main
+env:
+  PROJECT_ID: frenz-10676
+  SERVICE: infovaluationtest # google run service name
+  REGION: us-central1
+
+on: # When do you want it to run
+  push: # When pushed to master branch 
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs: # Define jobs to run 
+  deploy:
+    runs-on: ubuntu-latest
+    if: "contains(github.event.head_commit.message, 'deploy')"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      # Sets up the gcloud cli with the credentials we previously created, and will be storing within Github as secrets.
+      - name: Setup Cloud cli
+        uses: google-github-actions/setup-gcloud@v0.2.0
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          service_account_key: ${{ secrets.SERVICE_ACCOUNT_KEY }}
+          export_default_credentials: true
+        # Configure Docker with Credentials
+      - name: Authorize Docker push
+        run: gcloud auth configure-docker
+
+      #Build and push Container to Docker Registry
+      - name: Build and Push Container
+        run: |-
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} .
+          docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:latest .
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }}
+          docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:latest
+
+      #Deploy Container to CloudRun
+      - name: 'Deploy to Cloud Run'
+        run: |-
+          gcloud run deploy ${{ env.SERVICE }} \
+            --region ${{ env.REGION }} \
+            --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{  github.sha }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --no-cpu-throttling \
+            --log-http \
+            --min-instances 0
+
+
+
+      - name: Show Output
+        run: echo ${{ steps.frenz.outputs.url }}
