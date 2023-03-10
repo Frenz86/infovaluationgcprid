@@ -168,7 +168,7 @@ async def get_sectors_list2(current_user: User = Depends(get_current_active_user
 
 ## GET complete list of sectors
 @app.get('/list_sectors4',status_code=status.HTTP_200_OK,)
-async def get_sectors_list2(current_user: User = Depends(get_current_active_user)):
+async def get_sectors_list4(current_user: User = Depends(get_current_active_user)):
     print(current_user)
     statement = select(Multipli4.settore).distinct()
     result = session.exec(statement).all()
